@@ -7,12 +7,12 @@ local TICKS_PER_SECOND = 60
 local INV_RESULT = defines.inventory.crafter_output or defines.inventory.furnace_result or 2
 
 local function get_level_up_ticks()
-    local seconds = settings.global["idle-machine-levelup-seconds"].value
+    local seconds = settings.global["faustian-fabricator-levelup-seconds"].value
     return math.max(1, math.floor(seconds * TICKS_PER_SECOND))
 end
 
 local function get_base_generation_tick_rate()
-    local seconds = settings.global["idle-machine-generation-seconds"].value
+    local seconds = settings.global["faustian-fabricator-generation-seconds"].value
     return math.max(1, math.floor(seconds * TICKS_PER_SECOND))
 end
 
@@ -23,12 +23,27 @@ local function calculate_generation_tick_rate(machine)
 end
 
 local function item_exists(item_name)
-    return game and game.item_prototypes and game.item_prototypes[item_name] ~= nil
+    if not item_name then return false end
+
+    -- Factorio 2.0+ API
+    if prototypes and prototypes.item then
+        return prototypes.item[item_name] ~= nil
+    end
+
+    -- Factorio 1.1 API (guarded for compatibility when key is absent)
+    if game then
+        local ok, item_prototypes = pcall(function() return game.item_prototypes end)
+        if ok and item_prototypes then
+            return item_prototypes[item_name] ~= nil
+        end
+    end
+
+    return false
 end
 
 local function should_show_message_log(player)
     local player_settings = settings.get_player_settings(player)
-    return player_settings["idle-machine-show-message-log"].value
+    return player_settings["faustian-fabricator-show-message-log"].value
 end
 
 -- Define 6 buckets of items for progression with Science Packs
@@ -132,7 +147,7 @@ end)
 -- Register new machines
 local function on_entity_built(event)
     local entity = event.entity or event.created_entity
-    if entity and entity.name == "idle-machine" then
+    if entity and entity.name == "faustian-fabricator" then
         init_storage()
         local machine = {
             entity = entity,
@@ -150,9 +165,9 @@ local function on_entity_built(event)
     end
 end
 
-script.on_event(defines.events.on_built_entity, on_entity_built, {{filter = "name", name = "idle-machine"}})
-script.on_event(defines.events.on_robot_built_entity, on_entity_built, {{filter = "name", name = "idle-machine"}})
-script.on_event(defines.events.script_raised_built, on_entity_built, {{filter = "name", name = "idle-machine"}})
+script.on_event(defines.events.on_built_entity, on_entity_built, {{filter = "name", name = "faustian-fabricator"}})
+script.on_event(defines.events.on_robot_built_entity, on_entity_built, {{filter = "name", name = "faustian-fabricator"}})
+script.on_event(defines.events.script_raised_built, on_entity_built, {{filter = "name", name = "faustian-fabricator"}})
 
 -- Helper to find machine data
 local function get_machine(unit_number)
@@ -218,7 +233,7 @@ local function update_gui(player, machine)
         frame.log_flow.log_box.caption = table.concat(machine.log or {}, "\n")
     end
 
-    frame.title_flow.title_label.caption = "Idle Machine Lvl " .. machine.level
+    frame.title_flow.title_label.caption = "Faustian Fabricator Lvl " .. machine.level
     frame.upgrade_section.upgrade_label.caption = "Upgrades Available: " .. machine.pending_upgrades
     frame.upgrade_section.btn_flow.idle_upgrade_faster.enabled = machine.pending_upgrades > 0
     
@@ -290,7 +305,7 @@ end)
 
 -- Handle GUI Opened
 script.on_event(defines.events.on_gui_opened, function(event)
-    if not event.entity or event.entity.name ~= "idle-machine" then return end
+    if not event.entity or event.entity.name ~= "faustian-fabricator" then return end
     
     local player = game.get_player(event.player_index)
     local machine = get_machine(event.entity.unit_number)
@@ -309,7 +324,7 @@ script.on_event(defines.events.on_gui_opened, function(event)
     }
 
     local title_flow = frame.add{type = "flow", name = "title_flow"}
-    title_flow.add{type = "label", name = "title_label", caption = "Idle Machine Lvl " .. machine.level, style = "frame_title"}
+    title_flow.add{type = "label", name = "title_label", caption = "Faustian Fabricator Lvl " .. machine.level, style = "frame_title"}
 
     -- Status Section
     local status_flow = frame.add{type = "flow", name = "status_flow", direction = "vertical"}
@@ -424,7 +439,7 @@ script.on_event(defines.events.on_gui_click, function(event)
 end)
 
 script.on_event(defines.events.on_gui_closed, function(event)
-    if event.entity and event.entity.name == "idle-machine" then
+    if event.entity and event.entity.name == "faustian-fabricator" then
         local player = game.get_player(event.player_index)
         if player.gui.relative.idle_upgrade_frame then
             player.gui.relative.idle_upgrade_frame.destroy()
@@ -433,11 +448,11 @@ script.on_event(defines.events.on_gui_closed, function(event)
 end)
 
 script.on_event(defines.events.on_runtime_mod_setting_changed, function(event)
-    if event.setting ~= "idle-machine-generation-seconds" and event.setting ~= "idle-machine-levelup-seconds" then
+    if event.setting ~= "faustian-fabricator-generation-seconds" and event.setting ~= "faustian-fabricator-levelup-seconds" then
         return
     end
 
-    if event.setting == "idle-machine-generation-seconds" and storage.idle_machines then
+    if event.setting == "faustian-fabricator-generation-seconds" and storage.idle_machines then
         for _, machine in pairs(storage.idle_machines) do
             if machine.entity and machine.entity.valid then
                 local old_rate = machine.generation_tick_rate or get_base_generation_tick_rate()

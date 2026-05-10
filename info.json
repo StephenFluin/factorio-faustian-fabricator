@@ -1,9 +1,9 @@
 {
-    "name": "idle-machine",
+    "name": "faustian-fabricator",
     "version": "0.1.0",
-    "title": "Idle Machine",
+    "title": "Faustian Fabricator",
     "author": "Stephen",
     "factorio_version": "2.0",
     "dependencies": ["base >= 2.0.0"],
-    "description": "A 3x3 machine that levels up over time, allowing for upgrades to speed or item variety."
+    "description": "A cursed 3x3 machine that levels up over time, trading power for ever-greater output."
 }

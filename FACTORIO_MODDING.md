@@ -36,6 +36,6 @@ end
 Always use filters for `on_built_entity` and similar to reduce script overhead.
 ```lua
 script.on_event(defines.events.on_built_entity, on_entity_built, {
-    {filter = "name", name = "idle-machine"}
+    {filter = "name", name = "faustian-fabricator"}
 })
 ```

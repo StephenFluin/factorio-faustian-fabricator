@@ -11,7 +11,7 @@ def create_placeholder(path, size, color, text):
     img.save(path)
 
 # Icon: 64x64
-create_placeholder("graphics/icons/idle-machine.png", (64, 64), (100, 50, 150), "IM")
+create_placeholder("graphics/icons/faustian-fabricator.png", (64, 64), (100, 50, 150), "FF")
 
 # Entity: 214x190 (based on data.lua)
-create_placeholder("graphics/entity/idle-machine.png", (214, 190), (100, 50, 150), "IDLE MACHINE")
+create_placeholder("graphics/entity/faustian-fabricator.png", (214, 190), (100, 50, 150), "FAUSTIAN FABRICATOR")
