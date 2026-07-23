@@ -46,14 +46,16 @@ local function should_show_message_log(player)
     return player_settings["faustian-fabricator-show-message-log"].value
 end
 
--- Define 6 buckets of items for progression with Science Packs
+-- Define 8 buckets of items for progression with Science Packs
 local item_tiers = {
     { "iron-ore", "copper-ore", "coal", "stone", "wood", "automation-science-pack" }, -- Bucket 1: Raw / Red Science
     { "iron-plate", "copper-plate", "stone-brick", "steel-plate", "logistic-science-pack" }, -- Bucket 2: Smelted / Green Science
     { "iron-gear-wheel", "copper-cable", "pipe", "electronic-circuit", "military-science-pack" }, -- Bucket 3: Components / Gray Science
     { "advanced-circuit", "engine-unit", "plastic-bar", "sulfur", "concrete", "chemical-science-pack" }, -- Bucket 4: Advanced / Blue Science
     { "processing-unit", "electric-engine-unit", "battery", "flying-robot-frame", "production-science-pack" }, -- Bucket 5: Elite / Purple Science
-    { "low-density-structure", "rocket-fuel", "utility-science-pack", "space-science-pack" } -- Bucket 6: Space / Yellow & White Science
+    { "low-density-structure", "rocket-fuel", "utility-science-pack", "space-science-pack" }, -- Bucket 6: Space / Yellow & White Science
+    { "foundry", "electromagnetic-matrix", "turbo-transport-belt", "metallurgic-science-pack", "electromagnetic-science-pack", "agricultural-science-pack", "calcite", "carbon-fiber", "tungsten-carbide", "tungsten-plate" }, -- Bucket 7: Advanced Space / Orange Science
+    { "railgun-turret", "cryogenic-science-pack", "fusion-reactor", "fusion-generator","fusion-power-cell","fluoroketone-cold-barrel" } -- Bucket 8: Ultimate / Gold Science
 }
 
 -- Helper for logging to the machine's internal log
