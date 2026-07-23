@@ -53,7 +53,7 @@ local item_tiers = {
     { "iron-gear-wheel", "copper-cable", "pipe", "electronic-circuit", "military-science-pack" }, -- Bucket 3: Components / Gray Science
     { "advanced-circuit", "engine-unit", "plastic-bar", "sulfur", "concrete", "chemical-science-pack" }, -- Bucket 4: Advanced / Blue Science
     { "processing-unit", "electric-engine-unit", "battery", "flying-robot-frame", "production-science-pack" }, -- Bucket 5: Elite / Purple Science
-    { "low-density-structure", "rocket-fuel", "rocket-part", "utility-science-pack", "space-science-pack" } -- Bucket 6: Space / Yellow & White Science
+    { "low-density-structure", "rocket-fuel", "utility-science-pack", "space-science-pack" } -- Bucket 6: Space / Yellow & White Science
 }
 
 -- Helper for logging to the machine's internal log

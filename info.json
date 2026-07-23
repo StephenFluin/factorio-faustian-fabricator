@@ -3,7 +3,7 @@
     "version": "0.1.0",
     "title": "Faustian Fabricator",
     "author": "Stephen",
-    "factorio_version": "2.0",
+    "factorio_version": "2.1",
     "dependencies": ["base >= 2.0.0"],
     "description": "A cursed 3x3 machine that levels up over time, trading power for ever-greater output."
 }

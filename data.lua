@@ -33,7 +33,7 @@ local idle_dummy_recipe = {
     energy_required = 1,
     ingredients = {},
     results = {},
-    category = "faustian-fabricator-crafting"
+    categories = {"faustian-fabricator-crafting"}
 }
 
 local idle_machine_entity = {
