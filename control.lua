@@ -6,14 +6,23 @@ local TICKS_PER_SECOND = 60
 -- Safe inventory define
 local INV_RESULT = defines.inventory.crafter_output or defines.inventory.furnace_result or 2
 
+-- Setting lookups are cached; on_runtime_mod_setting_changed clears the cache
+local setting_cache = {}
+
 local function get_level_up_ticks()
-    local seconds = settings.global["faustian-fabricator-levelup-seconds"].value
-    return math.max(1, math.floor(seconds * TICKS_PER_SECOND))
+    if not setting_cache.level_up_ticks then
+        local seconds = settings.global["faustian-fabricator-levelup-seconds"].value
+        setting_cache.level_up_ticks = math.max(1, math.floor(seconds * TICKS_PER_SECOND))
+    end
+    return setting_cache.level_up_ticks
 end
 
 local function get_base_generation_tick_rate()
-    local seconds = settings.global["faustian-fabricator-generation-seconds"].value
-    return math.max(1, math.floor(seconds * TICKS_PER_SECOND))
+    if not setting_cache.base_generation_ticks then
+        local seconds = settings.global["faustian-fabricator-generation-seconds"].value
+        setting_cache.base_generation_ticks = math.max(1, math.floor(seconds * TICKS_PER_SECOND))
+    end
+    return setting_cache.base_generation_ticks
 end
 
 local function calculate_generation_tick_rate(machine)
@@ -182,7 +191,7 @@ local function repair_machine(machine)
     return machine
 end
 
--- Initialize storage
+-- Initialize storage. Machines are keyed by unit_number.
 local function init_storage()
     storage.idle_machines = storage.idle_machines or {}
 end
@@ -190,7 +199,14 @@ end
 script.on_init(init_storage)
 script.on_configuration_changed(function()
     init_storage()
-    for _, m in pairs(storage.idle_machines) do repair_machine(m) end
+    -- Older versions stored machines in an array
+    local machines = {}
+    for _, m in pairs(storage.idle_machines) do
+        if m.entity and m.entity.valid then
+            machines[m.entity.unit_number] = repair_machine(m)
+        end
+    end
+    storage.idle_machines = machines
 end)
 
 -- Register new machines
@@ -210,7 +226,7 @@ local function on_entity_built(event)
             item_pool = {"iron-ore", "copper-ore"},
             log = {"Machine initialized (Electric)."}
         }
-        table.insert(storage.idle_machines, machine)
+        storage.idle_machines[entity.unit_number] = machine
     end
 end
 
@@ -220,12 +236,8 @@ script.on_event(defines.events.script_raised_built, on_entity_built, {{filter = 
 
 -- Helper to find machine data
 local function get_machine(unit_number)
-    if not storage.idle_machines then return nil end
-    for _, m in pairs(storage.idle_machines) do
-        if m.entity.valid and m.entity.unit_number == unit_number then
-            return repair_machine(m)
-        end
-    end
+    local machine = storage.idle_machines and storage.idle_machines[unit_number]
+    if machine and machine.entity.valid then return machine end
     return nil
 end
 
@@ -296,11 +308,11 @@ end
 script.on_event(defines.events.on_tick, function(event)
     if not storage.idle_machines then return end
     
-    for i = #storage.idle_machines, 1, -1 do
-        local machine = repair_machine(storage.idle_machines[i])
-        
+    local level_up_ticks = get_level_up_ticks()
+
+    for unit_number, machine in pairs(storage.idle_machines) do
         if not machine.entity.valid then
-            table.remove(storage.idle_machines, i)
+            storage.idle_machines[unit_number] = nil
             goto continue
         end
 
@@ -313,7 +325,6 @@ script.on_event(defines.events.on_tick, function(event)
             machine.level_progress_ticks = (machine.level_progress_ticks or 0) + 1
             
             -- Handle Level Up
-            local level_up_ticks = get_level_up_ticks()
             while machine.level_progress_ticks >= level_up_ticks do
                 machine.level_progress_ticks = machine.level_progress_ticks - level_up_ticks
                 machine.level = machine.level + 1
@@ -341,16 +352,18 @@ script.on_event(defines.events.on_tick, function(event)
             machine.next_generation_tick = machine.next_generation_tick + 1
         end
 
-        -- Update GUIs
-        if event.tick % 10 == 0 then
-            for _, player in pairs(game.players) do
-                if player.opened == machine.entity then
-                    update_gui(player, machine)
-                end
+        ::continue::
+    end
+
+    -- Update open GUIs
+    if event.tick % 10 == 0 then
+        for _, player in pairs(game.connected_players) do
+            local opened = player.opened
+            if opened and player.opened_gui_type == defines.gui_type.entity and opened.name == "faustian-fabricator" then
+                local machine = get_machine(opened.unit_number)
+                if machine then update_gui(player, machine) end
             end
         end
-
-        ::continue::
     end
 end)
 
@@ -502,6 +515,7 @@ script.on_event(defines.events.on_runtime_mod_setting_changed, function(event)
     if event.setting ~= "faustian-fabricator-generation-seconds" and event.setting ~= "faustian-fabricator-levelup-seconds" then
         return
     end
+    setting_cache = {}
 
     if event.setting == "faustian-fabricator-generation-seconds" and storage.idle_machines then
         for _, machine in pairs(storage.idle_machines) do
