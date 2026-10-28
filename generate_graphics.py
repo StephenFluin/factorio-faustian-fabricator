@@ -2,13 +2,15 @@
 """Generate the Faustian Fabricator entity sprites and icon.
 
 The machine is drawn as an occult altar: an obsidian plinth with a brass-ringed
-summoning circle, a rotating rune ring, a counter-rotating heptagram, a pulsing
-soul orb and four candle-topped obelisks.
+summoning circle and four candle-topped obelisks. While powered, control.lua
+draws the "awake" animation on top: a hovering soul orb, a rotating rune ring
+and a pulsing heptagram.
 
 Outputs (all high resolution, used at scale 0.5 => 64 px per tile):
-  graphics/entity/faustian-fabricator.png         animated body (FRAMES frames)
-  graphics/entity/faustian-fabricator-glow.png    animated emissive layer
+  graphics/entity/faustian-fabricator.png         static body (dormant altar)
   graphics/entity/faustian-fabricator-shadow.png  static shadow
+  graphics/entity/faustian-fabricator-awake.png   animated orb (FRAMES frames)
+  graphics/entity/faustian-fabricator-glow.png    animated emissive layer (FRAMES frames)
   graphics/icons/faustian-fabricator.png          64 px icon with mipmaps
 
 Every frame shares the same canvas, so all layers use the same shift. Keep the
@@ -197,8 +199,7 @@ def draw_obelisk(layer, x, base_y, height, flicker):
     d.ellipse(ellipse_box(x, cy - 8, 1.6, 2.2), fill=FLAME)
 
 
-def draw_body(frame: int) -> Image.Image:
-    t = frame / FRAMES
+def draw_body() -> Image.Image:
     layer = new_layer()
     d = ImageDraw.Draw(layer)
 
@@ -221,7 +222,7 @@ def draw_body(frame: int) -> Image.Image:
         d.line(pts([(x0, y), ((x0 + x1) / 2, y + 7), (x1, y + 4), (x1 + 3, y + 14)]), fill=EMBER_DIM, width=int(s(1.6)))
 
     for o in back:
-        draw_obelisk(layer, *o, flicker=0.5 + 0.5 * math.sin(2 * math.pi * (t * 3 + o[0] / 50)))
+        draw_obelisk(layer, *o, flicker=0.5)
 
     # Top face
     fill_textured(layer, TOP_FACE, STONE, 1.0)
@@ -233,26 +234,40 @@ def draw_body(frame: int) -> Image.Image:
               outline=BRASS, width=int(s(3)))
     d.ellipse(ellipse_box(CIRCLE_CX, CIRCLE_CY - 1, CIRCLE_RX - 1, CIRCLE_RY - 1), outline=BRASS_LIGHT, width=int(s(0.8)))
     d.ellipse(ellipse_box(CIRCLE_CX, CIRCLE_CY, CIRCLE_RX - 20, CIRCLE_RY - 17), outline=BRASS_DARK, width=int(s(2)))
-    rune_phase = t * 2 * math.pi / RUNE_SECTORS
-    draw_runes(d, rune_phase, EMBER_DIM, 1.6)
-    draw_heptagram(d, -t * 2 * math.pi / 7, EMBER_DIM, 1.6)
+    # Dormant engravings: an empty rune band and the heptagram groove
+    for inset in (6, 18):
+        d.ellipse(ellipse_box(CIRCLE_CX, CIRCLE_CY, CIRCLE_RX - inset, CIRCLE_RY - inset * 0.85), outline=EMBER_DIM, width=int(s(1)))
+    draw_heptagram(d, 0, EMBER_DIM, 1.6)
 
     # Brass studs where the obelisk sockets meet the circle
     for a in range(4):
         sx, sy = on_circle(math.pi / 4 + a * math.pi / 2, CIRCLE_RX, CIRCLE_RY)
         d.ellipse(ellipse_box(sx, sy, 3.5, 3), fill=BRASS, outline=BRASS_DARK, width=int(s(0.8)))
 
-    # Soul orb hovering above the circle, with its shadow on the floor
-    bob = math.sin(2 * math.pi * t) * 3
-    orb_y = CIRCLE_CY - 26 + bob
-    d.ellipse(ellipse_box(CIRCLE_CX, CIRCLE_CY + 2, 13 - bob * 0.5, 6), fill=(10, 4, 6, 170))
-    d.ellipse(ellipse_box(CIRCLE_CX, orb_y, 13, 13), fill=(120, 14, 16))
-    d.ellipse(ellipse_box(CIRCLE_CX - 2, orb_y - 2, 9, 9), fill=(180, 30, 26))
-    d.ellipse(ellipse_box(CIRCLE_CX - 5, orb_y - 6, 3.5, 2.5), fill=(255, 210, 190))
+    # Empty brass cradle where the soul orb manifests
+    d.ellipse(ellipse_box(CIRCLE_CX, CIRCLE_CY, 9, 6), fill=OBSIDIAN_DARK, outline=BRASS, width=int(s(1.6)))
 
     for o in front:
-        draw_obelisk(layer, *o, flicker=0.5 + 0.5 * math.sin(2 * math.pi * (t * 3 + o[0] / 50 + 0.37)))
+        draw_obelisk(layer, *o, flicker=0.5)
 
+    return layer.resize((FRAME_W, FRAME_H), Image.LANCZOS)
+
+
+def orb_y(t: float) -> float:
+    return CIRCLE_CY - 26 + math.sin(2 * math.pi * t) * 3
+
+
+def draw_awake(frame: int) -> Image.Image:
+    """Solid parts drawn while powered: the hovering orb and its shadow on the floor."""
+    t = frame / FRAMES
+    y = orb_y(t)
+    bob = y - (CIRCLE_CY - 26)
+    layer = new_layer()
+    d = ImageDraw.Draw(layer)
+    d.ellipse(ellipse_box(CIRCLE_CX, CIRCLE_CY + 2, 13 - bob * 0.5, 6), fill=(10, 4, 6, 170))
+    d.ellipse(ellipse_box(CIRCLE_CX, y, 13, 13), fill=(120, 14, 16))
+    d.ellipse(ellipse_box(CIRCLE_CX - 2, y - 2, 9, 9), fill=(180, 30, 26))
+    d.ellipse(ellipse_box(CIRCLE_CX - 5, y - 6, 3.5, 2.5), fill=(255, 210, 190))
     return layer.resize((FRAME_W, FRAME_H), Image.LANCZOS)
 
 
@@ -265,15 +280,14 @@ def draw_glow(frame: int) -> Image.Image:
 
     rune_color = tuple(int(c * (0.75 + 0.25 * pulse)) for c in EMBER) + (255,)
     draw_runes(d, t * 2 * math.pi / RUNE_SECTORS, rune_color, 1.4)
-    draw_heptagram(d, -t * 2 * math.pi / 7, tuple(int(c * pulse) for c in EMBER) + (255,), 1.2)
+    draw_heptagram(d, 0, tuple(int(c * pulse) for c in EMBER) + (255,), 1.2)
     for x0, x1 in ((CX - 44, CX - 30), (CX + 18, CX + 36)):
         y = PLINTH_BOTTOM + 6
         d.line(pts([(x0, y), ((x0 + x1) / 2, y + 7), (x1, y + 4), (x1 + 3, y + 14)]), fill=EMBER, width=int(s(1.2)))
 
-    bob = math.sin(2 * math.pi * t) * 3
-    orb_y = CIRCLE_CY - 26 + bob
-    d.ellipse(ellipse_box(CIRCLE_CX - 1, orb_y - 1, 10, 10), fill=SOUL)
-    d.ellipse(ellipse_box(CIRCLE_CX - 2, orb_y - 2, 5, 5), fill=(255, 200, 150))
+    y = orb_y(t)
+    d.ellipse(ellipse_box(CIRCLE_CX - 1, y - 1, 10, 10), fill=SOUL)
+    d.ellipse(ellipse_box(CIRCLE_CX - 2, y - 2, 5, 5), fill=(255, 200, 150))
 
     for i, (x, base_y, height) in enumerate(OBELISKS):
         flicker = 0.5 + 0.5 * math.sin(2 * math.pi * (t * 3 + x / 50 + (0.37 if base_y >= CY else 0)))
@@ -281,7 +295,7 @@ def draw_glow(frame: int) -> Image.Image:
 
     halo = new_layer()
     hd = ImageDraw.Draw(halo)
-    hd.ellipse(ellipse_box(CIRCLE_CX, orb_y, 26 * pulse + 6, 26 * pulse + 6), fill=(200, 30, 20, int(150 * pulse)))
+    hd.ellipse(ellipse_box(CIRCLE_CX, y, 26 * pulse + 6, 26 * pulse + 6), fill=(200, 30, 20, int(150 * pulse)))
     hd.ellipse(ellipse_box(CIRCLE_CX, CIRCLE_CY, CIRCLE_RX - 6, CIRCLE_RY - 5), fill=(120, 10, 8, int(60 * pulse)))
     for x, base_y, height in OBELISKS:
         hd.ellipse(ellipse_box(x, base_y - height - 10, 9, 9), fill=(255, 140, 50, 110))
@@ -313,7 +327,9 @@ def sheet(frames: list[Image.Image]) -> Image.Image:
     return out
 
 
-def make_icon(body: Image.Image, glow: Image.Image) -> Image.Image:
+def make_icon(body: Image.Image, awake: Image.Image, glow: Image.Image) -> Image.Image:
+    body = body.copy()
+    body.alpha_composite(awake)
     rgb = ImageChops.add(body.convert("RGB"), glow.convert("RGB"))
     alpha = ImageChops.lighter(body.getchannel("A"), glow.getchannel("A"))
     rgb.putalpha(alpha)
@@ -334,12 +350,14 @@ def make_icon(body: Image.Image, glow: Image.Image) -> Image.Image:
 def main() -> None:
     entity_dir = REPO_ROOT / "graphics" / "entity"
     icon_dir = REPO_ROOT / "graphics" / "icons"
-    bodies = [draw_body(i) for i in range(FRAMES)]
+    body = draw_body()
+    awakes = [draw_awake(i) for i in range(FRAMES)]
     glows = [draw_glow(i) for i in range(FRAMES)]
-    sheet(bodies).save(entity_dir / "faustian-fabricator.png", optimize=True)
+    body.save(entity_dir / "faustian-fabricator.png", optimize=True)
+    sheet(awakes).save(entity_dir / "faustian-fabricator-awake.png", optimize=True)
     sheet(glows).save(entity_dir / "faustian-fabricator-glow.png", optimize=True)
     draw_shadow().save(entity_dir / "faustian-fabricator-shadow.png", optimize=True)
-    make_icon(bodies[0], glows[0]).save(icon_dir / "faustian-fabricator.png", optimize=True)
+    make_icon(body, awakes[0], glows[0]).save(icon_dir / "faustian-fabricator.png", optimize=True)
     print(f"frame {FRAME_W}x{FRAME_H}, {FRAMES} frames, line_length {LINE_LENGTH}, shift {SHIFT}")
 
 

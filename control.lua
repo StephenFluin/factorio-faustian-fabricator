@@ -22,6 +22,53 @@ local function calculate_generation_tick_rate(machine)
     return math.max(1, math.floor(base_rate * (0.8 ^ upgrades)))
 end
 
+-- Ticks until the next item, after speed modules and beacons
+local function effective_generation_ticks(machine)
+    local speed_bonus = math.max(-0.8, machine.entity.speed_bonus or 0)
+    return math.max(1, math.floor(machine.generation_tick_rate / (1 + speed_bonus)))
+end
+
+-- Productivity bonus is the chance of a free extra copy of each generated item
+local function generated_item_count(machine)
+    local productivity = machine.entity.productivity_bonus or 0
+    local count = 1 + math.floor(productivity)
+    if math.random() < productivity - math.floor(productivity) then
+        count = count + 1
+    end
+    return count
+end
+
+-- The soul orb, runes and light only manifest while the machine is powered
+local function set_awake(machine, awake)
+    local render = machine.awake_render
+    local is_awake = render ~= nil and render.valid
+    if awake == is_awake then return end
+
+    if awake then
+        local entity = machine.entity
+        machine.awake_render = rendering.draw_animation{
+            animation = "faustian-fabricator-awake",
+            target = entity,
+            surface = entity.surface,
+            render_layer = "object",
+            animation_speed = 0.25
+        }
+        machine.awake_light = rendering.draw_light{
+            sprite = "utility/light_medium",
+            target = {entity = entity, offset = {0, -0.5}},
+            surface = entity.surface,
+            color = {1, 0.25, 0.15},
+            scale = 1.5,
+            intensity = 0.6
+        }
+    else
+        if render and render.valid then render.destroy() end
+        if machine.awake_light and machine.awake_light.valid then machine.awake_light.destroy() end
+        machine.awake_render = nil
+        machine.awake_light = nil
+    end
+end
+
 local function item_exists(item_name)
     if not item_name then return false end
 
@@ -188,11 +235,12 @@ local function update_gui(player, machine)
     local frame = relative.idle_upgrade_frame
     if not frame then return end
     
+    local generation_ticks = effective_generation_ticks(machine)
     local gen_remaining = math.max(0, machine.next_generation_tick - game.tick)
-    local gen_progress = 1 - (gen_remaining / machine.generation_tick_rate)
+    local gen_progress = 1 - (gen_remaining / generation_ticks)
     frame.status_flow.gen_flow.gen_bar.value = math.min(1, math.max(0, gen_progress))
     
-    local items_per_second = 60 / machine.generation_tick_rate
+    local items_per_second = 60 / generation_ticks
     if items_per_second > 1 then
         frame.status_flow.gen_flow.gen_timer.caption = string.format("%.1f items/s", items_per_second)
     else
@@ -258,6 +306,7 @@ script.on_event(defines.events.on_tick, function(event)
 
         local status = machine.entity.status
         local is_powered = status ~= defines.entity_status.no_power and status ~= defines.entity_status.not_plugged_in_electric_network
+        set_awake(machine, is_powered)
         
         if is_powered then
             machine.total_operating_ticks = machine.total_operating_ticks + 1
@@ -278,9 +327,9 @@ script.on_event(defines.events.on_tick, function(event)
                 local result_inv = machine.entity.get_inventory(INV_RESULT)
                 
                 if result_inv then
-                    local inserted = result_inv.insert({name = item_to_gen, amount = 1})
+                    local inserted = result_inv.insert({name = item_to_gen, count = generated_item_count(machine)})
                     if inserted > 0 then
-                        machine.next_generation_tick = event.tick + machine.generation_tick_rate
+                        machine.next_generation_tick = event.tick + effective_generation_ticks(machine)
                         machine_log(machine, "Produced: " .. item_to_gen)
                     else
                         machine.next_generation_tick = event.tick + 60
