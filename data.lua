@@ -6,8 +6,9 @@ local is_factorio_2_1_or_newer = tonumber(base_major) > 2 or (tonumber(base_majo
 
 local idle_machine_energy_usage_kw = settings.startup["faustian-fabricator-electricity-kw"].value
 
+-- Tags carry a mined machine's level, upgrades and item pool to where it is placed again
 local idle_machine_item = {
-    type = "item",
+    type = "item-with-tags",
     name = "faustian-fabricator",
     icon = "__faustian-fabricator__/graphics/icons/faustian-fabricator.png",
     icon_size = 64,
@@ -127,6 +128,15 @@ local awake_animation = {
     }
 }
 
+-- Played when the player spends an upgrade point
+local deal_sound = {
+    type = "sound",
+    name = "faustian-fabricator-deal",
+    filename = "__base__/sound/heartbeat.ogg",
+    volume = 0.8,
+    speed = 0.75
+}
+
 data:extend({
     {
         type = "recipe-category",
@@ -136,5 +146,6 @@ data:extend({
     idle_machine_recipe,
     idle_dummy_recipe,
     idle_machine_entity,
-    awake_animation
+    awake_animation,
+    deal_sound
 })

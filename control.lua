@@ -67,8 +67,8 @@ local function set_awake(machine, awake)
             target = {entity = entity, offset = {0, -0.5}},
             surface = entity.surface,
             color = {1, 0.25, 0.15},
-            scale = 1.5,
-            intensity = 0.6
+            scale = 1.2,
+            intensity = 0.45
         }
     else
         if render and render.valid then render.destroy() end
@@ -215,6 +215,28 @@ script.on_configuration_changed(function()
     storage.idle_machines = machines
 end)
 
+-- Progress saved on a mined machine's item, restored when it is placed again
+local SAVED_FIELDS = {"level", "pending_upgrades", "speed_upgrade_count", "level_progress_ticks", "total_operating_ticks", "item_pool"}
+
+local function find_fabricator_stack(inventory)
+    if not (inventory and inventory.valid) then return nil end
+    local stack = inventory.find_item_stack("faustian-fabricator")
+    if stack and stack.valid_for_read then return stack end
+    return nil
+end
+
+local function saved_progress(event)
+    local stack = event.stack
+    if not (stack and stack.valid_for_read and stack.name == "faustian-fabricator") then
+        stack = find_fabricator_stack(event.consumed_items)
+    end
+    if stack and stack.is_item_with_tags then
+        local tags = stack.tags
+        if tags and tags.level then return tags end
+    end
+    return nil
+end
+
 -- Register new machines
 local function on_entity_built(event)
     local entity = event.entity or event.created_entity
@@ -230,8 +252,18 @@ local function on_entity_built(event)
             generation_tick_rate = get_base_generation_tick_rate(),
             next_generation_tick = game.tick + get_base_generation_tick_rate(),
             item_pool = {"iron-ore", "copper-ore"},
-            log = {{"faustian-fabricator.log-initialized"}}
+            log = {}
         }
+        machine_log(machine, {"faustian-fabricator.log-initialized"})
+        local saved = saved_progress(event)
+        if saved then
+            for _, field in pairs(SAVED_FIELDS) do
+                if saved[field] ~= nil then machine[field] = saved[field] end
+            end
+            machine = repair_machine(machine)
+            machine.next_generation_tick = game.tick + machine.generation_tick_rate
+            machine_log(machine, {"faustian-fabricator.log-restored", machine.level})
+        end
         storage.idle_machines[entity.unit_number] = machine
     end
 end
@@ -239,6 +271,24 @@ end
 script.on_event(defines.events.on_built_entity, on_entity_built, {{filter = "name", name = "faustian-fabricator"}})
 script.on_event(defines.events.on_robot_built_entity, on_entity_built, {{filter = "name", name = "faustian-fabricator"}})
 script.on_event(defines.events.script_raised_built, on_entity_built, {{filter = "name", name = "faustian-fabricator"}})
+
+local function on_entity_mined(event)
+    local machine = storage.idle_machines and storage.idle_machines[event.entity.unit_number]
+    if not machine then return end
+    storage.idle_machines[event.entity.unit_number] = nil
+
+    -- Fresh machines stay plain so they stack with newly crafted ones
+    if machine.level <= 1 and machine.pending_upgrades == 0 and #machine.item_pool <= 2 then return end
+    local stack = find_fabricator_stack(event.buffer)
+    if not stack then return end
+    local tags = {}
+    for _, field in pairs(SAVED_FIELDS) do tags[field] = machine[field] end
+    stack.tags = tags
+    stack.custom_description = {"faustian-fabricator.saved-description", machine.level, machine.pending_upgrades, #machine.item_pool}
+end
+
+script.on_event(defines.events.on_player_mined_entity, on_entity_mined, {{filter = "name", name = "faustian-fabricator"}})
+script.on_event(defines.events.on_robot_mined_entity, on_entity_mined, {{filter = "name", name = "faustian-fabricator"}})
 
 -- Helper to find machine data
 local function get_machine(unit_number)
@@ -436,9 +486,9 @@ script.on_event(defines.events.on_gui_opened, function(event)
     local log_box = log_flow.add{
         type = "label",
         name = "log_box",
-        caption = {"faustian-fabricator.waiting"},
-        single_line = false
+        caption = {"faustian-fabricator.waiting"}
     }
+    log_box.style.single_line = false
     log_box.style.font = "default-small"
     log_box.style.maximal_width = 250
     log_box.style.maximal_height = 80
@@ -513,7 +563,9 @@ script.on_event(defines.events.on_gui_click, function(event)
     end
 
     machine.pending_upgrades = machine.pending_upgrades - 1
-    update_gui(game.get_player(event.player_index), machine)
+    local player = game.get_player(event.player_index)
+    player.play_sound{path = "faustian-fabricator-deal"}
+    update_gui(player, machine)
 end)
 
 script.on_event(defines.events.on_gui_closed, function(event)
