@@ -12,6 +12,11 @@ from zipfile import ZIP_DEFLATED, ZipFile
 
 REPO_ROOT = Path(__file__).resolve().parent
 INFO_PATH = REPO_ROOT / "info.json"
+DIST_DIR = REPO_ROOT / "dist"
+
+# Factorio only loads mods whose info.json factorio_version matches the game's
+# major.minor, so each supported version gets its own archive.
+SUPPORTED_FACTORIO_VERSIONS = ("2.0", "2.1")
 
 EXCLUDE_PATTERNS = (
     ".git/**",
@@ -36,9 +41,13 @@ REQUIRED_RELEASE_FILES = (
 )
 
 
-def load_mod_metadata() -> tuple[str, str]:
+def load_info() -> dict:
     with INFO_PATH.open("r", encoding="utf-8") as f:
-        info = json.load(f)
+        return json.load(f)
+
+
+def load_mod_metadata() -> tuple[str, str]:
+    info = load_info()
 
     mod_name = info.get("name")
     mod_version = info.get("version")
@@ -108,7 +117,7 @@ def validate_release_files(files: list[Path]) -> None:
         )
 
 
-def build_archive(output_name: str) -> Path:
+def build_archive(output_name: str, factorio_version: str) -> Path:
     files = gather_files(output_name)
 
     if not files:
@@ -116,14 +125,22 @@ def build_archive(output_name: str) -> Path:
 
     validate_release_files(files)
 
-    output_path = REPO_ROOT / output_name
+    output_dir = DIST_DIR / factorio_version
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = output_dir / output_name
     root_in_zip = output_path.stem
+
+    info = load_info()
+    info["factorio_version"] = factorio_version
 
     with ZipFile(output_path, "w", compression=ZIP_DEFLATED) as zf:
         for file_path in files:
             rel = file_path.relative_to(REPO_ROOT).as_posix()
             arcname = f"{root_in_zip}/{rel}"
-            zf.write(file_path, arcname)
+            if rel == "info.json":
+                zf.writestr(arcname, json.dumps(info, indent=4) + "\n")
+            else:
+                zf.write(file_path, arcname)
 
     return output_path
 
@@ -142,6 +159,12 @@ def parse_args() -> argparse.Namespace:
         default=default_output,
         help=f"Output zip filename (default: {default_output})",
     )
+    parser.add_argument(
+        "--factorio-version",
+        choices=SUPPORTED_FACTORIO_VERSIONS,
+        action="append",
+        help="Factorio version to package for; repeatable (default: all supported versions)",
+    )
     args = parser.parse_args()
 
     expected = expected_archive_name()
@@ -155,8 +178,9 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
-    output_path = build_archive(args.output)
-    print(f"Built {output_path.name}")
+    for factorio_version in args.factorio_version or SUPPORTED_FACTORIO_VERSIONS:
+        output_path = build_archive(args.output, factorio_version)
+        print(f"Built {output_path.relative_to(REPO_ROOT)} (Factorio {factorio_version})")
     return 0
 
 
