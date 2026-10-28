@@ -12,6 +12,7 @@ Outputs (all high resolution, used at scale 0.5 => 64 px per tile):
   graphics/entity/faustian-fabricator-awake.png   animated orb (FRAMES frames)
   graphics/entity/faustian-fabricator-glow.png    animated emissive layer (FRAMES frames)
   graphics/icons/faustian-fabricator.png          64 px icon with mipmaps
+  thumbnail.png                                   144 px mod portal thumbnail
 
 Every frame shares the same canvas, so all layers use the same shift. Keep the
 constants below in sync with data.lua.
@@ -347,6 +348,21 @@ def make_icon(body: Image.Image, awake: Image.Image, glow: Image.Image) -> Image
     return out
 
 
+def make_thumbnail(body: Image.Image, shadow: Image.Image, awake: Image.Image, glow: Image.Image) -> Image.Image:
+    size = 144
+    bg = Image.new("RGBA", (FRAME_W, FRAME_H), (24, 16, 20, 255))
+    vignette = Image.new("RGBA", (FRAME_W, FRAME_H), (0, 0, 0, 0))
+    ImageDraw.Draw(vignette).ellipse([20, 40, FRAME_W - 20, FRAME_H], fill=(120, 20, 16, 140))
+    bg.alpha_composite(vignette.filter(ImageFilter.GaussianBlur(40)))
+    shade = Image.new("RGBA", shadow.size, (0, 0, 0, 0))
+    shade.putalpha(shadow.getchannel("A").point(lambda a: a // 2))
+    bg.alpha_composite(shade)
+    bg.alpha_composite(body)
+    bg.alpha_composite(awake)
+    rgb = ImageChops.add(bg.convert("RGB"), Image.composite(glow.convert("RGB"), Image.new("RGB", glow.size), glow.getchannel("A")))
+    return rgb.resize((size, size), Image.LANCZOS)
+
+
 def main() -> None:
     entity_dir = REPO_ROOT / "graphics" / "entity"
     icon_dir = REPO_ROOT / "graphics" / "icons"
@@ -356,7 +372,9 @@ def main() -> None:
     body.save(entity_dir / "faustian-fabricator.png", optimize=True)
     sheet(awakes).save(entity_dir / "faustian-fabricator-awake.png", optimize=True)
     sheet(glows).save(entity_dir / "faustian-fabricator-glow.png", optimize=True)
-    draw_shadow().save(entity_dir / "faustian-fabricator-shadow.png", optimize=True)
+    shadow = draw_shadow()
+    shadow.save(entity_dir / "faustian-fabricator-shadow.png", optimize=True)
+    make_thumbnail(body, shadow, awakes[0], glows[0]).save(REPO_ROOT / "thumbnail.png", optimize=True)
     make_icon(body, awakes[0], glows[0]).save(icon_dir / "faustian-fabricator.png", optimize=True)
     print(f"frame {FRAME_W}x{FRAME_H}, {FRAMES} frames, line_length {LINE_LENGTH}, shift {SHIFT}")
 

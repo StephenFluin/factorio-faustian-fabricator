@@ -1,0 +1,28 @@
+---------------------------------------------------------------------------------------------------
+Version: 0.2.1
+Date: 2026-10-28
+  Info:
+    - Release for Factorio 2.1. Same changes as 0.2.0.
+---------------------------------------------------------------------------------------------------
+Version: 0.2.0
+Date: 2026-10-28
+  Features:
+    - New graphics: the fabricator is now an occult altar. The soul orb, runes and glow only appear while it is powered.
+    - Mining a leveled fabricator keeps its level, unspent upgrades and item pool on the item. Placing it again resumes the bargain.
+    - Speed modules and beacons make items generate faster. Productivity gives a chance of extra items.
+    - A heartbeat seals the deal when you spend an upgrade point.
+    - GUI and event log text can now be translated, and items show their in-game names.
+  Bugfixes:
+    - The fabricator now draws its full configured power. Before, it only drew 1/30 of it.
+    - Fixed the sprite being misaligned with the machine's footprint.
+    - Fixed module slots missing on Factorio 2.0.
+    - Fixed the event log being cut off after one line.
+  Optimizations:
+    - Less work per tick, especially with many fabricators.
+  Compatibility:
+    - Supports Factorio 2.0 (0.2.0) and 2.1 (0.2.1).
+---------------------------------------------------------------------------------------------------
+Version: 0.1.0
+Date: 2026-05-10
+  Info:
+    - Initial release.

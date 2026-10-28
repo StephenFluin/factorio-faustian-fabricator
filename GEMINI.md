@@ -4,7 +4,7 @@
 This is a Factorio mod for Factorio 2.0 and 2.1. It features a "Faustian Fabricator" that levels up and generates items over time.
 
 ## Supporting 2.0 and 2.1
-- Factorio only loads mods whose `factorio_version` matches the game's major.minor, so `python3 build_mod.py` builds one archive per version into `dist/2.0/` and `dist/2.1/`, overriding `factorio_version` in each. The repo's `info.json` stays on 2.1 for local testing.
+- Factorio only loads mods whose `factorio_version` matches the game's major.minor, so `python3 build_mod.py` builds one archive per version into `dist/2.0/` and `dist/2.1/`, overriding `factorio_version` in each. Each archive's patch number is the Factorio minor version (0.2.0 → 2.0, 0.2.1 → 2.1) because the mod portal needs unique versions, so bump the minor version in `info.json` for each release and add a `changelog.txt` entry for both. The repo's `info.json` stays on 2.1 for local testing.
 - `data.lua` checks `mods["base"]` to use `category` (2.0) or `categories` (2.1) on recipes. `control.lua` uses `defines.inventory.crafter_output`, which exists in both.
 
 ## Graphics
