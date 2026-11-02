@@ -400,13 +400,19 @@ script.on_event(defines.events.on_tick, function(event)
                 local result_inv = machine.entity.get_inventory(INV_RESULT)
                 
                 if result_inv then
-                    local inserted = result_inv.insert({name = item_to_gen, count = generated_item_count(machine)})
-                    if inserted > 0 then
-                        machine.next_generation_tick = event.tick + effective_generation_ticks(machine)
-                        machine_log(machine, {"faustian-fabricator.log-produced", item_label(item_to_gen)})
+                    local count = generated_item_count(machine)
+                    local inserted = result_inv.insert({name = item_to_gen, count = count})
+                    machine.next_generation_tick = event.tick + effective_generation_ticks(machine)
+                    if inserted < count then
+                        -- A full machine keeps producing and dumps the overflow on the ground around it
+                        local entity = machine.entity
+                        entity.surface.spill_item_stack({
+                            position = entity.position,
+                            stack = {name = item_to_gen, count = count - inserted}
+                        })
+                        machine_log(machine, {"faustian-fabricator.log-output-spilled", item_label(item_to_gen)})
                     else
-                        machine.next_generation_tick = event.tick + 60
-                        machine_log(machine, {"faustian-fabricator.log-output-full"})
+                        machine_log(machine, {"faustian-fabricator.log-produced", item_label(item_to_gen)})
                     end
                 end
             end
