@@ -13,7 +13,7 @@ local idle_machine_item = {
     icon = "__faustian-fabricator__/graphics/icons/faustian-fabricator.png",
     icon_size = 64,
     subgroup = "production-machine",
-    order = "a[faustian-fabricator]",
+    order = "0[faustian-fabricator]",
     place_result = "faustian-fabricator",
     stack_size = 10
 }
